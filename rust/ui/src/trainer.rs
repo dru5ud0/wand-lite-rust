@@ -394,15 +394,18 @@ impl TrainerPanel {
         self.install = None;
         self.process = None;
 
-        let Some(runtime) = wand_rebuild_core::runtime::find_newest(local_app_data)
+        // An adopted (debloated) backend wins over a live Wand installation.
+        let Some(runtime) = wand_rebuild_core::backend_store::resolve_runtime(local_app_data)
             .ok()
             .flatten()
         else {
-            self.status = "An installed Wand runtime was not found.".to_owned();
+            self.status =
+                "No Wand runtime was found. Install Wand once, or run the debloat installer to adopt an existing backend."
+                    .to_owned();
             return;
         };
         let _ = runtime;
-        let storage = trainer_blueprint::local_storage_directory(app_data);
+        let storage = wand_rebuild_core::backend_store::resolve_blueprints_dir(app_data, local_app_data);
 
         // 1. Locate the install directory and the running game process.
         let install = steam_root
@@ -484,7 +487,13 @@ impl TrainerPanel {
             return;
         };
         let trainer_id = blueprint.trainer_id.parse::<u64>().unwrap_or(0);
-        let trainer_root = app_data.join("wemod/App/trainers");
+        let Some(trainer_root) =
+            wand_rebuild_core::backend_store::resolve_trainers_dir(app_data, local_app_data)
+        else {
+            self.status = "No trainer cache was found. Open this game once in Wand so its trainer downloads."
+                .to_owned();
+            return;
+        };
         let cached_trainer = trainer_cache::find(&trainer_root, trainer_id).ok().flatten();
         let source = match blueprint.source {
             BlueprintSource::WandCache => "Wand cache",
@@ -528,10 +537,11 @@ impl TrainerPanel {
                     .to_owned(),
             );
         };
-        let runtime: WandRuntime = wand_rebuild_core::runtime::find_newest(local_app_data)
+        let runtime: WandRuntime = wand_rebuild_core::backend_store::resolve_runtime(local_app_data)
             .map_err(|error| error.to_string())?
-            .ok_or("An installed Wand runtime was not found.")?;
-        let trainer_root = app_data.join("wemod/App/trainers");
+            .ok_or("No Wand runtime was found. Install Wand once, or run the debloat installer to adopt an existing backend.")?;
+        let trainer_root = wand_rebuild_core::backend_store::resolve_trainers_dir(app_data, local_app_data)
+            .ok_or("No trainer cache was found. Open this game once in Wand so its trainer downloads.")?;
         let cached = trainer_cache::find(&trainer_root, blueprint.trainer_id.parse().unwrap_or(0))
             .map_err(|error| error.to_string())?
             .ok_or_else(|| {
@@ -573,7 +583,7 @@ impl TrainerPanel {
             "start: pid={} exe={} trainer={}",
             process.process_id, process.executable, blueprint.trainer_id
         ));
-        let storage = trainer_blueprint::local_storage_directory(app_data);
+        let storage = wand_rebuild_core::backend_store::resolve_blueprints_dir(app_data, local_app_data);
         let game_version = process_monitor::cached_game_version(&storage, &blueprint.game_id)
             .or_else(|| blueprint.preferred_game_version())
             .unwrap_or_default();

@@ -1,3 +1,4 @@
+pub mod backend_store;
 pub mod catalog;
 pub mod game_locator;
 pub mod hotkeys;

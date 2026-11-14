@@ -64,13 +64,61 @@ A session, in order:
 Protocol details, byte offsets and evidence: [BACKEND_MAP.md](BACKEND_MAP.md)
 and [docs/LEGACY_PROTOCOL.md](docs/LEGACY_PROTOCOL.md).
 
+## Install
+
+**Option A — prebuilt (no developer tools).** Download the `win64.zip` from
+[Releases](../../releases), extract it, then:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+That installs a single self-contained `wand-rebuild-ui.exe` to
+`%LOCALAPPDATA%\Programs\WandLite` and adds a Start Menu shortcut
+(`-DesktopShortcut` also adds a desktop icon). No Rust toolchain and no Visual
+C++ redistributable are required — the executable statically links its runtime.
+
+**Option B — from a checkout.** Requires the Rust MSVC toolchain; the script
+installs it via `winget`/`rustup` if missing:
+
+```powershell
+git clone https://github.com/dru5ud0/wand-lite-rust.git
+cd wand-lite-rust
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+**Option C — portable.** Skip the installer and run `wand-rebuild-ui.exe`
+directly. It writes only to `%LOCALAPPDATA%\WandRebuild`.
+
+**Option D — debloat an existing Wand install.** If Wand is already installed,
+`debloat.ps1` adopts its backend (runtime DLLs, cached trainers, blueprints)
+into Wand Lite's own data directory, installs Wand Lite, verifies the adopted
+backend is in use, and can then remove the Electron app:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\debloat.ps1
+# preview without changing anything:
+powershell -ExecutionPolicy Bypass -File .\debloat.ps1 -DryRun
+# adopt, install and uninstall Wand in one go:
+powershell -ExecutionPolicy Bypass -File .\debloat.ps1 -RemoveWand
+```
+
+After adoption the installed Wand application is no longer required — the
+client reports `Backend source: adopted 12.30.1 (25 trainers cached)` and a live
+trainer session works with Wand's runtime folder renamed away. Re-run with
+`-Force` after updating Wand to refresh the adopted copy.
+
+Uninstall with `.\uninstall.ps1` (add `-RemoveData` to drop cached data).
+Full details, a first-run checklist and troubleshooting:
+**[docs/INSTALL.md](docs/INSTALL.md)**.
+
 ## Requirements
 
 - Windows 10/11 x64
 - The official **Wand** desktop app installed and signed in **once**, so the
   trainer runtime and the trainers you want are on disk
-- [Rust MSVC toolchain](https://rust-lang.org/tools/install/) + Microsoft C++
-  build tools / Windows SDK (to build)
+- Only if building from source: [Rust MSVC toolchain](https://rust-lang.org/tools/install/)
+  + Microsoft C++ build tools / Windows SDK
 
 ## Build
 

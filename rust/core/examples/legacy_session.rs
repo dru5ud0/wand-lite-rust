@@ -26,7 +26,6 @@ use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use wand_rebuild_core::process_monitor;
-use wand_rebuild_core::runtime::find_newest;
 use wand_rebuild_core::trainer_blueprint::{self, TrainerBlueprint};
 use wand_rebuild_core::trainer_cache;
 use wand_rebuild_core::trainer_session::{
@@ -95,7 +94,7 @@ fn run() -> Result<(), String> {
     let app_data = env::var("APPDATA").map_err(|_| "APPDATA is not set")?;
     let local_app_data = env::var("LOCALAPPDATA").map_err(|_| "LOCALAPPDATA is not set")?;
 
-    let runtime = find_newest(&PathBuf::from(&local_app_data))
+    let runtime = wand_rebuild_core::backend_store::resolve_runtime(&PathBuf::from(&local_app_data))
         .map_err(|error| format!("could not inspect installed Wand runtime: {error}"))?
         .ok_or("no complete Wand runtime was found")?;
     println!(
@@ -109,7 +108,12 @@ fn run() -> Result<(), String> {
     );
     println!("trainerlib dir : {}", runtime.trainer_directory.display());
 
-    let trainer_root = PathBuf::from(&app_data).join("wemod/App/trainers");
+    let trainer_root =
+        wand_rebuild_core::backend_store::resolve_trainers_dir(
+            &PathBuf::from(&app_data),
+            &PathBuf::from(&local_app_data),
+        )
+        .ok_or("no trainer cache directory was found")?;
     let cached = trainer_cache::find(&trainer_root, options.trainer_id)
         .map_err(|error| format!("could not search the trainer cache: {error}"))?
         .ok_or_else(|| {
@@ -122,7 +126,10 @@ fn run() -> Result<(), String> {
     println!("trainer dll    : {}", cached.path.display());
     println!("trainer sha256 : {}", cached.sha256);
 
-    let storage = trainer_blueprint::local_storage_directory(&PathBuf::from(&app_data));
+    let storage = wand_rebuild_core::backend_store::resolve_blueprints_dir(
+        &PathBuf::from(&app_data),
+        &PathBuf::from(&local_app_data),
+    );
     let blueprint = match trainer_blueprint::load_cached(&storage, &options.trainer_id.to_string()) {
         Ok(Some(blueprint)) => {
             println!("blueprint      : Wand cache ({} cheats)", blueprint.cheats.len());

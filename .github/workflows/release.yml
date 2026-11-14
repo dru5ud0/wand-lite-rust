@@ -1,0 +1,94 @@
+name: Release
+
+# Publish a ready-to-run Windows build. Either push a tag:
+#   git tag v0.1.0 && git push --tags
+# or run this workflow manually (Actions -> Release -> Run workflow).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      # rust/.cargo/config.toml statically links the MSVC runtime, so the
+      # resulting .exe runs on a clean machine with no VC++ redistributable.
+      - name: Build
+        run: cargo build --package wand-rebuild-ui --release
+
+      - name: Stage release files
+        run: |
+          $tag = if ($env:GITHUB_REF_NAME -like 'v*') { $env:GITHUB_REF_NAME } else { '${{ inputs.tag }}' }
+          $repo = Split-Path -Parent (Get-Location)
+          $dist = Join-Path $env:RUNNER_TEMP 'wand-lite-rust'
+          New-Item -ItemType Directory -Path $dist -Force | Out-Null
+
+          Copy-Item 'target/release/wand-rebuild-ui.exe' $dist
+          foreach ($file in 'install.ps1', 'debloat.ps1', 'uninstall.ps1', 'README.md', 'LICENSE', 'NOTICE.md') {
+              Copy-Item (Join-Path $repo $file) $dist
+          }
+          Copy-Item (Join-Path $repo 'docs') (Join-Path $dist 'docs') -Recurse
+
+          $zip = Join-Path $env:RUNNER_TEMP "wand-lite-rust-$tag-win64.zip"
+          Compress-Archive -Path (Join-Path $dist '*') -DestinationPath $zip -Force
+
+          "TAG=$tag"          | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ZIP=$zip"          | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $notes = @(
+            'Native Windows build (x64). A single self-contained executable: no Rust',
+            'toolchain and no Visual C++ redistributable required.',
+            '',
+            '## Install',
+            '1. Download the `win64.zip` asset below and extract it.',
+            '2. Run `powershell -ExecutionPolicy Bypass -File .\install.ps1`',
+            '3. Start your game, then run Wand Lite and press **Load trainer**.',
+            '',
+            '## Requirement',
+            'Wand Lite drives the trainer runtime installed by the official Wand',
+            'desktop app. Install Wand, sign in, and open each game''s trainer page',
+            'once so its trainer is cached. After that Wand does not need to run.',
+            '',
+            'No Wand binaries, trainer DLLs, game artwork or catalog data are',
+            'included - see NOTICE.md.'
+          ) -join "`n"
+          $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+          Set-Content -LiteralPath $notesFile -Value $notes -Encoding utf8
+
+          $existing = gh release view $env:TAG 2>$null
+          if ($LASTEXITCODE -eq 0 -and $existing) {
+              Write-Host "Release $env:TAG exists; updating asset."
+              gh release upload $env:TAG $env:ZIP --clobber
+          } else {
+              gh release create $env:TAG $env:ZIP `
+                --target main `
+                --title "Wand Lite Rust $env:TAG" `
+                --notes-file $notesFile
+          }

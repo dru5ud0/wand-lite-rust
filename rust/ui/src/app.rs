@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use wand_rebuild_core::catalog::{Catalog, CatalogTitle};
 use wand_rebuild_core::preferences::Preferences;
-use wand_rebuild_core::runtime::{WandRuntime, find_newest};
+use wand_rebuild_core::runtime::WandRuntime;
 use wand_rebuild_core::steam;
 use wand_rebuild_core::trainer_cache;
 
@@ -624,6 +624,22 @@ pub fn self_check() -> i32 {
             .map(|runtime| runtime.app_directory.display().to_string())
             .unwrap_or_else(|| "unavailable".to_owned())
     );
+    match std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+        Some(local) => match wand_rebuild_core::backend_store::find(&local) {
+            Some(adopted) => println!(
+                "Backend source: adopted {} ({} trainers cached)",
+                adopted
+                    .version
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join("."),
+                adopted.trainer_count()
+            ),
+            None => println!("Backend source: installed Wand application"),
+        },
+        None => println!("Backend source: unknown (LOCALAPPDATA is not set)"),
+    }
     let cached_count = state
         .catalog
         .lock()
@@ -676,8 +692,8 @@ pub fn self_check() -> i32 {
 /// One-line capability summary used by `--self-check`, derived from the live
 /// state rather than hardcoded, so it cannot drift from the implementation.
 fn trainer_capability_line() -> String {
-    let (app_data, _local) = TrainerPanel::paths();
-    let storage = wand_rebuild_core::trainer_blueprint::local_storage_directory(&app_data);
+    let (app_data, local) = TrainerPanel::paths();
+    let storage = wand_rebuild_core::backend_store::resolve_blueprints_dir(&app_data, &local);
     let cached = wand_rebuild_core::trainer_blueprint::load_cached(&storage, "50696")
         .ok()
         .flatten()
@@ -742,7 +758,9 @@ fn load_state() -> AppState {
         .and_then(|bytes| Catalog::parse(&bytes).ok());
     let preferences_path = data.join("preferences.json");
     let preferences = Preferences::load(&preferences_path).unwrap_or_default();
-    let backend = find_newest(&local).ok().flatten();
+    let backend = wand_rebuild_core::backend_store::resolve_runtime(&local)
+        .ok()
+        .flatten();
     AppState {
         games,
         catalog: Mutex::new(catalog),
@@ -1059,17 +1077,23 @@ fn title_is_favorite(title: &CatalogTitle, preferences: &Preferences) -> bool {
 fn stickman_cache_status() -> &'static str {
     const INSPECTED_SHA256: &str =
         "f0de8ff90c929f987f4724e9e53c251f9670f1103882ed312cb768b3201e6c6b";
-    let path = std::env::var_os("APPDATA")
-        .map(|appdata| PathBuf::from(appdata).join("wemod/App/trainers"));
+    let app_data = std::env::var_os("APPDATA").map(PathBuf::from);
+    let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let path = match (app_data, local_app_data) {
+        (Some(app_data), Some(local)) => {
+            wand_rebuild_core::backend_store::resolve_trainers_dir(&app_data, &local)
+        }
+        _ => None,
+    };
     match path.as_deref().map(|path| trainer_cache::find(path, 50696)) {
         Some(Ok(Some(binary))) if binary.sha256 == INSPECTED_SHA256 => {
-            "Stickman trainer is cached; open Wand to activate it."
+            "Stickman trainer is cached and ready."
         }
         Some(Ok(Some(_))) => {
-            "Stickman trainer cache differs from the inspected version; open Wand to activate it."
+            "Stickman trainer cache differs from the inspected version."
         }
-        Some(Ok(None)) => "Stickman trainer is not cached; open Wand to download it.",
-        _ => "Open Wand to manage the Stickman trainer.",
+        Some(Ok(None)) => "Stickman trainer is not cached; open Wand once to download it.",
+        _ => "No trainer cache found; install Wand once or adopt a backend.",
     }
 }
 
