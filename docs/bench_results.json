@@ -1,0 +1,176 @@
+﻿{
+    "GeneratedAt":  "2026-11-13T22:21:40.0726290Z",
+    "Repetitions":  5,
+    "Raw":  [
+                {
+                    "Scenario":  "WandRebuild: idle library (16s settle)",
+                    "Runs":  [
+                                 {
+                                     "Run":  1,
+                                     "Processes":  1,
+                                     "PrivateMB":  25.8,
+                                     "WorkingSetMB":  44.3,
+                                     "StartupLatencyMs":  4307
+                                 },
+                                 {
+                                     "Run":  2,
+                                     "Processes":  1,
+                                     "PrivateMB":  23.4,
+                                     "WorkingSetMB":  44.2,
+                                     "StartupLatencyMs":  1206
+                                 },
+                                 {
+                                     "Run":  3,
+                                     "Processes":  1,
+                                     "PrivateMB":  23.1,
+                                     "WorkingSetMB":  44.1,
+                                     "StartupLatencyMs":  2002
+                                 },
+                                 {
+                                     "Run":  4,
+                                     "Processes":  1,
+                                     "PrivateMB":  24.2,
+                                     "WorkingSetMB":  44.1,
+                                     "StartupLatencyMs":  1514
+                                 },
+                                 {
+                                     "Run":  5,
+                                     "Processes":  1,
+                                     "PrivateMB":  23.4,
+                                     "WorkingSetMB":  44.3,
+                                     "StartupLatencyMs":  1732
+                                 }
+                             ]
+                },
+                {
+                    "Scenario":  "WandRebuild: active trainer session (hold 20s, sample ~18s)",
+                    "Runs":  [
+                                 {
+                                     "Run":  1,
+                                     "Processes":  1,
+                                     "PrivateMB":  2.7,
+                                     "WorkingSetMB":  9.9,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  2,
+                                     "Processes":  1,
+                                     "PrivateMB":  6.3,
+                                     "WorkingSetMB":  13.4,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  3,
+                                     "Processes":  1,
+                                     "PrivateMB":  5.6,
+                                     "WorkingSetMB":  12.8,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  4,
+                                     "Processes":  1,
+                                     "PrivateMB":  2.7,
+                                     "WorkingSetMB":  9.7,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  5,
+                                     "Processes":  1,
+                                     "PrivateMB":  2.7,
+                                     "WorkingSetMB":  9.8,
+                                     "StartupLatencyMs":  null
+                                 }
+                             ]
+                },
+                {
+                    "Scenario":  "Wand Lite Core: idle full tree (Wand + WandAuxiliaryService)",
+                    "Runs":  [
+                                 {
+                                     "Run":  1,
+                                     "Processes":  7,
+                                     "PrivateMB":  891.7,
+                                     "WorkingSetMB":  1784.3,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  2,
+                                     "Processes":  7,
+                                     "PrivateMB":  869.5,
+                                     "WorkingSetMB":  1783.5,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  3,
+                                     "Processes":  7,
+                                     "PrivateMB":  871.9,
+                                     "WorkingSetMB":  1784.7,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  4,
+                                     "Processes":  7,
+                                     "PrivateMB":  894.3,
+                                     "WorkingSetMB":  1788,
+                                     "StartupLatencyMs":  null
+                                 },
+                                 {
+                                     "Run":  5,
+                                     "Processes":  7,
+                                     "PrivateMB":  872.1,
+                                     "WorkingSetMB":  1787,
+                                     "StartupLatencyMs":  null
+                                 }
+                             ]
+                }
+            ],
+    "Summary":  [
+                    {
+                        "Scenario":  "WandRebuild: idle library (16s settle)",
+                        "Runs":  5,
+                        "Processes_Median":  1,
+                        "Processes_Min":  1,
+                        "Processes_Max":  1,
+                        "PrivateMB_Median":  23.4,
+                        "PrivateMB_Min":  23.1,
+                        "PrivateMB_Max":  25.8,
+                        "WorkingSetMB_Median":  44.2,
+                        "WorkingSetMB_Min":  44.1,
+                        "WorkingSetMB_Max":  44.3,
+                        "StartupLatencyMs_Median":  1732,
+                        "StartupLatencyMs_Min":  1206,
+                        "StartupLatencyMs_Max":  4307
+                    },
+                    {
+                        "Scenario":  "WandRebuild: active trainer session (hold 20s, sample ~18s)",
+                        "Runs":  5,
+                        "Processes_Median":  1,
+                        "Processes_Min":  1,
+                        "Processes_Max":  1,
+                        "PrivateMB_Median":  2.7,
+                        "PrivateMB_Min":  2.7,
+                        "PrivateMB_Max":  6.3,
+                        "WorkingSetMB_Median":  9.9,
+                        "WorkingSetMB_Min":  9.7,
+                        "WorkingSetMB_Max":  13.4,
+                        "StartupLatencyMs_Median":  null,
+                        "StartupLatencyMs_Min":  null,
+                        "StartupLatencyMs_Max":  null
+                    },
+                    {
+                        "Scenario":  "Wand Lite Core: idle full tree (Wand + WandAuxiliaryService)",
+                        "Runs":  5,
+                        "Processes_Median":  7,
+                        "Processes_Min":  7,
+                        "Processes_Max":  7,
+                        "PrivateMB_Median":  872.1,
+                        "PrivateMB_Min":  869.5,
+                        "PrivateMB_Max":  894.3,
+                        "WorkingSetMB_Median":  1784.7,
+                        "WorkingSetMB_Min":  1783.5,
+                        "WorkingSetMB_Max":  1788,
+                        "StartupLatencyMs_Median":  null,
+                        "StartupLatencyMs_Min":  null,
+                        "StartupLatencyMs_Max":  null
+                    }
+                ]
+}

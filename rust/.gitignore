@@ -1,0 +1,7 @@
+/target/
+**/target/
+/prototype/
+/reference/
+/ui/assets/art/
+/ui/assets/catalog.json
+*.pdb

@@ -1,0 +1,21 @@
+[package]
+name = "wand-rebuild-ui"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["compat-1-18", "backend-winit", "renderer-software"] }
+wand-rebuild-core = { path = "../core" }
+minreq = { version = "=3.0.0", features = ["https-native-tls"] }
+image = { version = "=0.25.10", default-features = false, features = ["webp", "jpeg"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_UI_Shell",
+    "Win32_UI_Input_KeyboardAndMouse",
+] }
+
+[build-dependencies]
+slint-build = { version = "=1.18.1", default-features = false, features = ["compat-1-18", "renderer-software"] }

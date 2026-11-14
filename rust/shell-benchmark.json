@@ -1,0 +1,12 @@
+{
+  "sample": "Rust UI with installed Steam game discovery; no Wand service connected",
+  "seconds_after_launch": 30,
+  "processes": 1,
+  "main_window_handle_present": true,
+  "private_mib": 13.7,
+  "working_mib": 40.8,
+  "private_at_15s_mib": 13.7,
+  "working_at_15s_mib": 40.8,
+  "idle_cpu_pct_all_cores": 0.0,
+  "features_connected": false
+}

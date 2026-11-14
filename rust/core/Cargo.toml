@@ -1,0 +1,34 @@
+[package]
+name = "wand-rebuild-core"
+version = "0.1.0"
+edition = "2024"
+description = "Private Rust backend groundwork for a native Wand rebuild"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = { version = "=0.11.1", default-features = false }
+minreq = { version = "=3.0.0", features = ["https-native-tls"] }
+flatbuffers = "=25.12.19"
+h2 = "=0.4.20"
+tokio = { version = "=1.54.1", features = ["rt", "net", "time"] }
+http = "1"
+bytes = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }

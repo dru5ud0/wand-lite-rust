@@ -1,0 +1,35 @@
+# Rust build output
+target/
+**/target/
+**/*.rs.bk
+
+# .NET build output (legacy protocol reference)
+**/bin/
+**/obj/
+
+# Prebuilt binaries — never commit build artifacts
+rust/prototype/
+*.exe
+*.dll
+*.pdb
+*.lib
+
+# Wand-owned assets that must not be redistributed:
+#  - catalog.json is Wand/WeMod catalog data
+#  - assets/art holds downloaded game artwork
+#  - reference/ contains Wand application code kept only as a local reference
+rust/ui/assets/catalog.json
+rust/ui/assets/art/
+rust/reference/
+
+# Local runtime output
+*.log
+*.tmp
+bench_results.local.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

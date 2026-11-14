@@ -1,0 +1,575 @@
+import { LineEdit, ScrollView, Slider } from "std-widgets.slint";
+import "../assets/fonts/Inter-Regular.ttf";
+import "../assets/fonts/Inter-SemiBold.ttf";
+import "../assets/fonts/Inter-Bold.ttf";
+import "../assets/fonts/Inter-Black.ttf";
+
+component SearchIcon inherits Path {
+    width: 18px;
+    height: 18px;
+    commands: "M 11 1 A 7 7 0 1 0 11 15 A 7 7 0 1 0 11 1 M 15 15 L 20 20";
+    stroke: #a5a5a5;
+    stroke-width: 2px;
+    stroke-line-cap: round;
+}
+
+component GridIcon inherits Path {
+    width: 18px;
+    height: 18px;
+    commands: "M 1 1 L 7 1 L 7 7 L 1 7 Z M 11 1 L 17 1 L 17 7 L 11 7 Z M 1 11 L 7 11 L 7 17 L 1 17 Z M 11 11 L 17 11 L 17 17 L 11 17 Z";
+    stroke: #e8e8e8;
+    stroke-width: 1.5px;
+}
+
+component ListIcon inherits Path {
+    width: 18px;
+    height: 18px;
+    commands: "M 2 4 L 16 4 M 2 9 L 16 9 M 2 14 L 16 14";
+    stroke: #e8e8e8;
+    stroke-width: 2px;
+    stroke-line-cap: round;
+}
+
+// Styled search input.
+//
+// The stock `LineEdit` widget draws its own background, border and focus ring,
+// which double-bordered and overflowed the custom container it was nested in.
+// This uses the styleable `TextInput` element instead so the app owns the whole
+// visual, including a focus state and a placeholder.
+component SearchField inherits Rectangle {
+    in property <string> placeholder;
+    in property <bool> with-icon: false;
+    in property <length> field-width: 260px;
+    in-out property <string> text;
+    callback edited(string);
+
+    width: field-width;
+    height: 36px;
+    background: #171717;
+    border-color: input.has-focus ? #4f4f4f : #333333;
+    border-width: 1px;
+    border-radius: 10px;
+
+    // Declared first so it sits behind the text input: clicking the padding
+    // focuses the field, clicking the text goes to the input itself.
+    TouchArea {
+        clicked => { input.focus(); }
+    }
+
+    if root.with-icon: Rectangle {
+        x: 12px;
+        width: 17px;
+        height: parent.height;
+        SearchIcon { y: (parent.height - self.height) / 2; }
+    }
+
+    input := TextInput {
+        x: root.with-icon ? 37px : 12px;
+        width: parent.width - self.x - 12px;
+        height: parent.height;
+        vertical-alignment: center;
+        single-line: true;
+        text <=> root.text;
+        color: #f0f0f0;
+        font-family: "Inter";
+        font-size: 13px;
+        edited => { root.edited(self.text); }
+    }
+
+    if root.text == "": Text {
+        x: root.with-icon ? 37px : 12px;
+        height: parent.height;
+        vertical-alignment: center;
+        text: root.placeholder;
+        color: #6f6f6f;
+        font-family: "Inter";
+        font-size: 13px;
+    }
+}
+
+export struct GameInfo {
+    id: string,
+    name: string,
+    detail: string,
+    cover: image,
+    favorite: bool,
+}
+
+export struct TrainerMod {
+    name: string,
+    category: string,
+    target: string,
+    enabled: bool,
+    value: float,
+    min: float,
+    max: float,
+    step: float,
+    kind: string,
+    status: string,
+    hotkey: string,
+}
+
+export component AppWindow inherits Window {
+    title: "Wand Lite";
+    width: 1280px;
+    height: 800px;
+    background: #050505;
+    default-font-family: "Inter";
+    no-frame: true;
+    resize-border-width: 5px;
+
+    in property <[GameInfo]> games;
+    in property <[TrainerMod]> trainer-mods;
+    in property <string> backend-status;
+    in property <string> selected-detail;
+    in property <string> trainer-status;
+    in property <string> trainer-session-status;
+    in-out property <bool> trainer-active: false;
+    in-out property <bool> trainer-can-start: false;
+    in-out property <bool> trainer-loading: false;
+    in-out property <string> action-status: "";
+    in-out property <bool> selected-installed: false;
+    in property <string> search-status;
+    in property <int> game-count;
+    in-out property <bool> catalog-ready: false;
+    in-out property <string> selected-game: "Your games";
+    in-out property <bool> searching: false;
+    in-out property <bool> show-detail: false;
+    in-out property <string> search-query: "";
+    in-out property <string> selected-id: "";
+    in-out property <bool> selected-favorite: false;
+    in-out property <bool> favorite-only: false;
+    in-out property <bool> sort-descending: false;
+    in-out property <bool> sort-by-recent: true;
+    in-out property <bool> grid-view: true;
+    // New trainer panel state (lead wires these).
+    in property <[string]> mod-groups: [];
+    in-out property <string> mod-filter: "";
+    in-out property <string> mod-group: "All";
+    in-out property <bool> hotkey-capturing: false;
+    in-out property <string> hotkey-capture-target: "";
+    in property <int> active-mod-count: 0;
+    private property <int> column-count: root.width < 1020px ? 2 : (root.width < 1280px ? 3 : 4);
+    callback game-selected(string);
+    callback search-changed(string);
+    callback find-opened();
+    callback view-changed();
+    callback favorite-toggled(string);
+    callback minimize-requested();
+    callback maximize-requested();
+    callback play-requested(string);
+    callback open-wand-requested();
+    callback trainer-start-requested();
+    callback trainer-stop-requested();
+    callback mod-toggled(string, bool);
+    callback mod-value-changed(string, float);
+    callback mod-filter-changed(string);
+    callback mod-group-changed(string);
+    callback hotkey-edit-requested(string);
+    callback hotkey-cancel-requested();
+
+    VerticalLayout {
+        width: root.width;
+        height: root.height;
+        spacing: 0px;
+        Rectangle {
+            height: 52px;
+            background: #080808;
+            border-color: #222222;
+            border-width: 1px;
+            WindowMoveArea { HorizontalLayout {
+                padding-left: 20px;
+                spacing: 12px;
+                Rectangle {
+                    width: 24px;
+                    height: 52px;
+                    Rectangle { y: 14px; width: 24px; height: 24px; background: #f0f0f0; border-radius: 7px; Text { text: "W"; color: #050505; font-family: "Inter"; font-size: 14px; font-weight: 900; horizontal-alignment: center; vertical-alignment: center; } }
+                }
+                Text { width: 78px; text: "Wand Lite"; color: #f0f0f0; font-family: "Inter"; font-size: 14px; font-weight: 650; vertical-alignment: center; horizontal-alignment: left; }
+                Text { width: 240px; text: "Games. Trainers. Nothing extra."; color: #858585; font-family: "Inter"; font-size: 12px; vertical-alignment: center; horizontal-alignment: left; }
+                Rectangle { horizontal-stretch: 1; }
+                Rectangle { width: 46px; Text { text: "−"; color: #cccccc; font-size: 17px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.minimize-requested(); } } }
+                Rectangle { width: 46px; Text { text: "□"; color: #cccccc; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.maximize-requested(); } } }
+                Rectangle { width: 46px; Text { text: "×"; color: #cccccc; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.close(); } } }
+            } }
+        }
+        HorizontalLayout {
+            spacing: 0px;
+            Rectangle {
+                width: 253px;
+                background: #080808;
+                border-color: #222222;
+                border-width: 1px;
+                VerticalLayout {
+                    padding-top: 24px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-bottom: 16px;
+                    spacing: 9px;
+                    Text { text: root.show-detail ? "TRAINER" : (root.searching ? "FIND A GAME" : "YOUR GAMES"); color: #858585; font-family: "Inter"; font-size: 10px; font-weight: 700; height: 16px; }
+                    Rectangle {
+                        height: 42px;
+                        background: root.show-detail || root.searching ? #080808 : #222222;
+                        border-radius: 9px;
+                        HorizontalLayout {
+                            padding-left: 13px;
+                            spacing: 13px;
+                            Text { width: 19px; text: "⌂"; color: #ffffff; font-size: 22px; vertical-alignment: center; }
+                            Text { width: 100px; text: "Home"; color: #ffffff; font-family: "Inter"; font-size: 13px; font-weight: 600; vertical-alignment: center; horizontal-alignment: left; }
+                        }
+                        TouchArea { width: parent.width; height: parent.height; clicked => { root.searching = false; root.show-detail = false; root.selected-game = "Your games"; root.search-query = ""; root.search-changed(""); } }
+                    }
+                    Rectangle {
+                        height: 42px;
+                        background: root.searching && !root.show-detail ? #222222 : #080808;
+                        border-radius: 9px;
+                        HorizontalLayout {
+                            padding-left: 13px;
+                            spacing: 13px;
+                            Rectangle { width: 19px; height: 42px; SearchIcon { y: 12px; } }
+                            Text { width: 120px; text: "Find a game"; color: #bdbdbd; font-family: "Inter"; font-size: 13px; font-weight: 600; vertical-alignment: center; horizontal-alignment: left; }
+                        }
+                        TouchArea { width: parent.width; height: parent.height; clicked => { root.show-detail = false; root.searching = true; root.selected-game = "Find a game"; root.search-query = ""; root.find-opened(); } }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                    Rectangle { height: 1px; background: #222222; }
+                    Text { text: backend-status; color: #858585; font-family: "Inter"; font-size: 11px; wrap: word-wrap; }
+                }
+            }
+            Rectangle {
+                background: #050505;
+                width: root.width - 253px;
+                height: root.height - 52px;
+                VerticalLayout {
+                    width: parent.width;
+                    height: parent.height;
+                    padding-left: 25px;
+                    padding-right: 29px;
+                    padding-top: 16px;
+                    padding-bottom: 18px;
+                    spacing: 0px;
+                    if !root.show-detail: VerticalLayout {
+                        horizontal-stretch: 1;
+                        vertical-stretch: 1;
+                        spacing: 0px;
+                        HorizontalLayout {
+                            height: 46px;
+                            // Leave room for the scrollbar so the view toggle is
+                            // never clipped by the content area's right edge.
+                            padding-right: 14px;
+                            spacing: 8px;
+                            Text { text: root.searching ? "Find a game" : "My games"; color: #f0f0f0; font-family: "Inter"; font-size: 30px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
+                            Rectangle { width: 44px; height: 36px; background: root.grid-view ? #242424 : #111111; border-radius: 8px; GridIcon { x: 13px; y: 9px; } TouchArea { clicked => { root.grid-view = true; } } }
+                            Rectangle { width: 44px; height: 36px; background: root.grid-view ? #111111 : #242424; border-radius: 8px; ListIcon { x: 13px; y: 9px; } TouchArea { clicked => { root.grid-view = false; } } }
+                        }
+                        Rectangle { height: 18px; }
+                        HorizontalLayout {
+                            height: 40px;
+                            spacing: 10px;
+                            SearchField {
+                                field-width: 360px;
+                                height: 40px;
+                                with-icon: true;
+                                placeholder: "Search";
+                                text <=> root.search-query;
+                                edited(text) => { root.search-changed(text); }
+                            }
+                            Rectangle { width: 52px; height: 40px; background: #222222; border-radius: 20px; Text { text: "Go"; color: #f0f0f0; font-family: "Inter"; font-size: 12px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.search-changed(root.search-query); } } }
+                        }
+                        Rectangle { height: 24px; }
+                        if root.searching: Text { height: 20px; text: root.search-status; color: #858585; font-family: "Inter"; font-size: 12px; }
+                        HorizontalLayout {
+                            height: 36px;
+                            spacing: 0px;
+                            Rectangle { width: 70px; height: 36px; background: root.favorite-only ? #050505 : #4a4a4a; border-radius: 18px; Text { text: "▦  All"; color: root.favorite-only ? #858585 : #ffffff; font-family: "Inter"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { width: parent.width; height: parent.height; clicked => { root.favorite-only = false; root.view-changed(); } } }
+                            Rectangle { width: 112px; height: 36px; background: root.favorite-only ? #4a4a4a : #050505; border-radius: 18px; Text { text: "☆  Favorites"; color: root.favorite-only ? #ffffff : #858585; font-family: "Inter"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { width: parent.width; height: parent.height; clicked => { root.favorite-only = true; root.view-changed(); } } }
+                            Rectangle { width: 15px; }
+                            Rectangle { width: 1px; height: 28px; background: #333333; }
+                            Rectangle { width: 9px; }
+                            Text { width: 61px; text: "Sort by"; color: #858585; font-family: "Inter"; font-size: 13px; vertical-alignment: center; }
+                            Rectangle { width: 131px; height: 36px; background: root.sort-by-recent ? #212121 : #050505; border-radius: 18px; Text { text: "Recently played"; color: root.sort-by-recent ? #ffffff : #858585; font-family: "Inter"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.sort-by-recent = true; root.view-changed(); } } }
+                            Rectangle { width: 48px; height: 36px; background: root.sort-by-recent ? #050505 : #212121; border-radius: 18px; Text { text: "A-Z"; color: root.sort-by-recent ? #858585 : #ffffff; font-family: "Inter"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.sort-by-recent = false; root.sort-descending = false; root.view-changed(); } } }
+                        }
+                        Rectangle { height: 25px; }
+                        Text { height: 32px; text: (root.searching ? "Catalog matches  " : (root.catalog-ready ? "Ready to play  " : "Installed games  ")) + root.game-count; color: #f0f0f0; font-family: "Inter"; font-size: 17px; font-weight: 650; }
+                        Rectangle { height: 9px; }
+                        ScrollView {
+                            horizontal-stretch: 1;
+                            vertical-stretch: 1;
+                            if root.grid-view: GridLayout {
+                                spacing: 18px;
+                                for game[index] in root.games: Rectangle {
+                                    row: index / root.column-count;
+                                    col: Math.mod(index, root.column-count);
+                                    width: root.column-count == 2 ? 300px : 229px;
+                                    height: 155px;
+                                    background: #050505;
+                                    border-radius: 8px;
+                                    VerticalLayout {
+                                        spacing: 10px;
+                                        Rectangle {
+                                            height: 107px;
+                                            background: #171717;
+                                            border-radius: 8px;
+                                            clip: true;
+                                            Image { width: parent.width; height: parent.height; source: game.cover; image-fit: cover; }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 4px;
+                                            Text { text: game.name; color: #bdbdbd; font-family: "Inter"; font-size: 13px; overflow: elide; horizontal-stretch: 1; }
+                                            Rectangle { width: 24px; height: 24px; Text { text: game.favorite ? "★" : "☆"; color: game.favorite ? #f2c96d : #858585; font-size: 17px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { width: parent.width; height: parent.height; clicked => { root.favorite-toggled(game.id); } } }
+                                        }
+                                    }
+                                    TouchArea { height: 107px; clicked => { root.selected-id = game.id; root.selected-favorite = game.favorite; root.selected-game = game.name; root.show-detail = true; root.game-selected(game.id); } }
+                                }
+                            }
+                            if !root.grid-view: VerticalLayout {
+                                spacing: 4px;
+                                for game in root.games: Rectangle {
+                                    width: 973px;
+                                    height: 68px;
+                                    background: #101010;
+                                    border-radius: 8px;
+                                    HorizontalLayout {
+                                        padding-left: 9px;
+                                        padding-right: 12px;
+                                        spacing: 14px;
+                                        Rectangle { width: 94px; height: 52px; border-radius: 5px; clip: true; Image { width: parent.width; height: parent.height; source: game.cover; image-fit: cover; } }
+                                        Text { text: game.name; color: #dedede; font-family: "Inter"; font-size: 13px; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: game.detail; color: #858585; font-family: "Inter"; font-size: 11px; vertical-alignment: center; width: 95px; }
+                                        Rectangle { width: 30px; height: 30px; Text { text: game.favorite ? "★" : "☆"; color: game.favorite ? #f2c96d : #858585; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.favorite-toggled(game.id); } } }
+                                    }
+                                    TouchArea { width: parent.width - 45px; height: parent.height; clicked => { root.selected-id = game.id; root.selected-favorite = game.favorite; root.selected-game = game.name; root.show-detail = true; root.game-selected(game.id); } }
+                                }
+                            }
+                        }
+                    }
+                    if root.show-detail: Rectangle {
+                        background: #0d0d0d;
+                        border-color: #222222;
+                        border-width: 1px;
+                        border-radius: 9px;
+                        VerticalLayout {
+                            padding: 24px;
+                            spacing: 12px;
+                            HorizontalLayout {
+                                Text { text: root.selected-game; color: #f0f0f0; font-family: "Inter"; font-size: 20px; font-weight: 650; horizontal-stretch: 1; }
+                                Rectangle { width: 30px; height: 30px; Text { text: root.selected-favorite ? "★" : "☆"; color: root.selected-favorite ? #f2c96d : #858585; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { width: parent.width; height: parent.height; clicked => { root.favorite-toggled(root.selected-id); } } }
+                            }
+                            Text { text: root.selected-detail; color: #858585; font-family: "Inter"; font-size: 12px; }
+                            HorizontalLayout {
+                                height: 42px;
+                                spacing: 12px;
+                                if root.selected-installed: Rectangle {
+                                    width: 120px; height: 40px; background: #f0f0f0; border-radius: 8px;
+                                    Text { text: "Play game"; color: #101010; font-family: "Inter"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea { clicked => { root.play-requested(root.selected-id); } }
+                                }
+                                Rectangle {
+                                    width: 127px; height: 40px; background: #252525; border-radius: 8px;
+                                    Text { text: "Open Wand"; color: #f0f0f0; font-family: "Inter"; font-size: 13px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea { clicked => { root.open-wand-requested(); } }
+                                }
+                            }
+                            Text { text: root.action-status; color: #a9c5a9; font-family: "Inter"; font-size: 12px; wrap: word-wrap; }
+                            Rectangle { height: 1px; background: #222222; }
+
+                            // Trainer panel header
+                            HorizontalLayout {
+                                height: 34px;
+                                spacing: 12px;
+                                Text { text: "Trainer"; color: #f0f0f0; font-family: "Inter"; font-size: 16px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
+                                Rectangle {
+                                    width: 78px; height: 22px; border-radius: 11px;
+                                    background: root.trainer-loading ? #3a2f00 : (root.trainer-active ? #1f3a10 : #222222);
+                                    Text {
+                                        text: root.trainer-loading ? "starting" : (root.trainer-active ? "active" : "idle");
+                                        color: root.trainer-loading ? #f2c96d : (root.trainer-active ? #ddf00c : #858585);
+                                        font-family: "Inter"; font-size: 11px; font-weight: 700;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                                if root.active-mod-count > 0: Text {
+                                    text: root.active-mod-count + " active";
+                                    color: #858585; font-family: "Inter"; font-size: 11px; vertical-alignment: center;
+                                }
+                            }
+                            Text { text: root.trainer-session-status; color: root.trainer-active ? #ddf00c : #858585; font-family: "Inter"; font-size: 12px; wrap: word-wrap; }
+
+                            // Actions
+                            HorizontalLayout {
+                                height: 44px;
+                                spacing: 12px;
+                                if !root.trainer-active: Rectangle {
+                                    width: 150px; height: 40px; border-radius: 8px;
+                                    background: root.trainer-can-start ? (load-ta.has-hover ? #c8d800 : #ddf00c) : (load-ta.has-hover ? #333333 : #252525);
+                                    Text { text: root.trainer-loading ? "Loading..." : "Load trainer"; color: root.trainer-can-start ? #2a3000 : #858585; font-family: "Inter"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                                    load-ta := TouchArea { clicked => { if (!root.trainer-loading) { root.trainer-start-requested(); } } }
+                                    if root.trainer-loading: Rectangle {
+                                        y: 36px; height: 3px; width: root.trainer-loading ? 150px : 0px; background: #ddf00c; border-radius: 2px;
+                                        animate width { duration: 700ms; easing: ease-in-out; }
+                                    }
+                                }
+                                if root.trainer-active: Rectangle {
+                                    width: 150px; height: 40px; border-radius: 8px; background: unload-ta.has-hover ? #333333 : #252525;
+                                    Text { text: "Unload trainer"; color: #f0f0f0; font-family: "Inter"; font-size: 13px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                                    unload-ta := TouchArea { clicked => { root.trainer-stop-requested(); } }
+                                }
+                            }
+
+                            // Filter + group chips
+                            HorizontalLayout {
+                                height: 40px;
+                                spacing: 10px;
+                                SearchField {
+                                    field-width: 260px;
+                                    height: 36px;
+                                    placeholder: "Filter mods";
+                                    text <=> root.mod-filter;
+                                    edited(text) => { root.mod-filter-changed(text); }
+                                }
+                            }
+                            HorizontalLayout {
+                                height: 34px;
+                                spacing: 8px;
+                                Rectangle {
+                                    width: 52px; height: 30px; border-radius: 15px;
+                                    background: root.mod-group == "All" ? #ddf00c : (chip-all.has-hover ? #2a2a2a : #1a1a1a);
+                                    Text { text: "All"; color: root.mod-group == "All" ? #2a3000 : #bdbdbd; font-family: "Inter"; font-size: 12px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                                    chip-all := TouchArea { clicked => { root.mod-group = "All"; root.mod-group-changed("All"); } }
+                                }
+                                for group in root.mod-groups: Rectangle {
+                                    width: 86px; height: 30px; border-radius: 15px;
+                                    background: root.mod-group == group ? #ddf00c : (chip-g.has-hover ? #2a2a2a : #1a1a1a);
+                                    Text { text: group; color: root.mod-group == group ? #2a3000 : #bdbdbd; font-family: "Inter"; font-size: 12px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; overflow: elide; }
+                                    chip-g := TouchArea { clicked => { root.mod-group = group; root.mod-group-changed(group); } }
+                                }
+                            }
+
+                            // Hotkey capture overlay
+                            if root.hotkey-capturing: Rectangle {
+                                height: 44px; background: #2a2300; border-color: #6b5a00; border-width: 1px; border-radius: 8px;
+                                HorizontalLayout {
+                                    padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                    Text { text: "Press a key combination for " + root.hotkey-capture-target + ", Esc to cancel"; color: #f2c96d; font-family: "Inter"; font-size: 12px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Rectangle {
+                                        width: 64px; height: 28px; border-radius: 6px; background: cancel-ta.has-hover ? #333333 : #252525;
+                                        Text { text: "Cancel"; color: #f0f0f0; font-family: "Inter"; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
+                                        cancel-ta := TouchArea { clicked => { root.hotkey-cancel-requested(); } }
+                                    }
+                                }
+                            }
+
+                            // Mod rows
+                            if root.trainer-active && root.trainer-mods.length > 0: ScrollView {
+                                vertical-stretch: 1;
+                                VerticalLayout {
+                                    spacing: 8px;
+                                        for mod in root.trainer-mods: Rectangle {
+                                            height: 56px;
+                                            background: row-ta.has-hover ? #181818 : #121212;
+                                            border-color: mod.enabled ? #3d4a10 : #222222;
+                                            border-width: 1px;
+                                            border-radius: 8px;
+                                            opacity: root.trainer-loading ? 0.55 : 1.0;
+                                            row-ta := TouchArea { width: parent.width; height: parent.height; }
+                                            HorizontalLayout {
+                                                padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                                // Name + category column takes the free space.
+                                                VerticalLayout {
+                                                    horizontal-stretch: 1;
+                                                    spacing: 2px;
+                                                    Text { text: mod.name; color: #f0f0f0; font-family: "Inter"; font-size: 13px; font-weight: 600; overflow: elide; vertical-alignment: center; }
+                                                    Text { text: mod.category; color: #858585; font-family: "Inter"; font-size: 10px; overflow: elide; vertical-alignment: center; }
+                                                }
+                                                // Right-hand controls, vertically centred.
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    HorizontalLayout {
+                                                        spacing: 12px;
+                                                        // Status pill: only while a change is in
+                                                        // flight or after the trainer answered.
+                                                        if mod.status != "": Rectangle {
+                                                            width: 64px; height: 18px; border-radius: 9px;
+                                                            background: mod.status == "rejected"
+                                                                ? #3a1010
+                                                                : (mod.status == "confirmed"
+                                                                    ? (mod.enabled ? #1f3a10 : #1c1c1c)
+                                                                    : #3a2f00);
+                                                            Text {
+                                                                text: mod.status == "rejected"
+                                                                    ? "failed"
+                                                                    : (mod.status == "confirmed"
+                                                                        ? (mod.enabled ? "on" : "off")
+                                                                        : "pending");
+                                                                color: mod.status == "rejected"
+                                                                    ? #ff6b6b
+                                                                    : (mod.status == "confirmed"
+                                                                        ? (mod.enabled ? #ddf00c : #6f6f6f)
+                                                                        : #f2c96d);
+                                                                font-family: "Inter"; font-size: 9px; font-weight: 700;
+                                                                horizontal-alignment: center; vertical-alignment: center; overflow: elide;
+                                                            }
+                                                        }
+                                                        // Hotkey chip: click to rebind.
+                                                        Rectangle {
+                                                            width: 96px; height: 24px; border-radius: 6px;
+                                                            background: hk-ta.has-hover ? #2a2a2a : #1a1a1a;
+                                                            Text {
+                                                                text: mod.hotkey == "" ? "Set key" : mod.hotkey;
+                                                                color: mod.hotkey == "" ? #f2c96d : #bdbdbd;
+                                                                font-family: "Inter"; font-size: 10px; font-weight: 600;
+                                                                horizontal-alignment: center; vertical-alignment: center; overflow: elide;
+                                                            }
+                                                            hk-ta := TouchArea { clicked => { if (!root.trainer-loading) { root.hotkey-edit-requested(mod.target); } } }
+                                                        }
+                                                        if mod.kind == "toggle": Rectangle {
+                                                            width: 46px; height: 26px; border-radius: 13px;
+                                                            background: mod.enabled ? #ddf00c : #2a2a2a;
+                                                            animate background { duration: 120ms; }
+                                                            Rectangle {
+                                                                y: 3px; x: mod.enabled ? 23px : 3px;
+                                                                width: 20px; height: 20px; border-radius: 10px;
+                                                                background: mod.enabled ? #101010 : #858585;
+                                                                animate x { duration: 120ms; easing: ease-out; }
+                                                            }
+                                                            TouchArea { clicked => { if (!root.trainer-loading) { root.mod-toggled(mod.target, !mod.enabled); } } }
+                                                        }
+                                                        if mod.kind == "slider" || mod.kind == "number": HorizontalLayout {
+                                                            spacing: 8px;
+                                                            Slider {
+                                                                width: 130px; minimum: mod.min; maximum: mod.max; step: mod.step; value: mod.value;
+                                                                enabled: !root.trainer-loading;
+                                                                changed(value) => { root.mod-value-changed(mod.target, value); }
+                                                            }
+                                                            Text {
+                                                                text: mod.value; color: #858585; font-family: "Inter"; font-size: 11px;
+                                                                width: 44px; horizontal-alignment: right; vertical-alignment: center;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                }
+                            }
+
+                            if root.trainer-active && root.trainer-mods.length == 0: Text {
+                                text: "This trainer exposes no modification controls.";
+                                color: #858585; font-family: "Inter"; font-size: 12px; wrap: word-wrap;
+                            }
+                            if !root.trainer-active && !root.trainer-loading && root.trainer-mods.length == 0: Text {
+                                text: "No trainer resolved. Select a supported installed game, then load its trainer.";
+                                color: #858585; font-family: "Inter"; font-size: 12px; wrap: word-wrap;
+                            }
+
+                            // No trailing stretch spacer here: it would compete with the
+                            // mod-list ScrollView for the panel's remaining height and
+                            // leave the list clipped with dead space below it.
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
