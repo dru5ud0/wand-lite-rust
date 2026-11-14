@@ -163,8 +163,21 @@ Confirmed against Wand 12.30.1 and *Stick It to the Stickman*:
 - clean unload; hotkey rebinding captured and persisted
 - works with **zero Wand processes running**
 
-`cargo test --workspace --release` → **74 tests**, including a real Windows
+`cargo test --workspace --release` → **78 tests**, including a real Windows
 named-pipe round trip.
+
+### Reproducible from a clean clone
+
+The whole flow was re-run from a fresh `git clone` into an empty build
+directory, with no prebuilt artifacts and no local-only files:
+
+1. `cargo test --workspace --release` → 78 passed
+2. `install.ps1` (from-source mode) → built and installed the executable
+3. that installed executable ran a live trainer session → **PASSED**, all five
+   modifications confirmed
+
+`debloat.ps1 -DryRun` also resolves the backend correctly from a source
+checkout. Nothing in the repository refers to a developer-machine path.
 
 ## Performance
 
