@@ -1,42 +1,64 @@
-# Benchmark Findings — WandRebuild (Rust) vs Wand Lite Core
+# Performance: Wand Lite Rust vs Wand Lite Core (Electron)
 
-## Harness
+Measured on the same machine, same session, with both applications sitting on
+their idle library view. Three runs each; the median of the three is reported.
 
-- Path: `work/tools/benchmark_runs.ps1`
-- Run: `powershell -ExecutionPolicy Bypass -File work/tools/benchmark_runs.ps1`
-- 5 repetitions per scenario; reports median/min/max. Raw JSON: `work/bench_results.json`.
-- Leaves `Wand`/`WandAuxiliaryService` running; kills its own `wand-rebuild-ui` children.
+![Comparison](bench/comparison.png)
 
-## 5-run results (medians)
+![Task Manager](bench/task-manager.png)
 
-| Scenario | Runs | Processes (med/min/max) | Private MiB (med/min/max) | WorkingSet MiB (med/min/max) | StartupLatencyMs (med/min/max) |
-|---|---:|---:|---:|---:|---:|
-| WandRebuild: idle library (16s settle) | 5 | 1/1/1 | 23.4/23.1/25.8 | 44.2/44.1/44.3 | 1732/1206/4307 |
-| WandRebuild: active trainer session (hold 20s, sample ~18s) | 5 | 1/1/1 | 2.7/2.7/6.3 | 9.9/9.7/13.4 | n/a (headless) |
-| Wand Lite Core: idle full tree | 5 | 7/7/7 | 872.1/869.5/894.3 | 1784.7/1783.5/1788.0 | n/a |
+## Results
 
-## Reduction vs Wand Lite Core (median)
+| Metric | Wand Lite Core (Electron) | Wand Lite Rust | Difference |
+|---|---:|---:|---:|
+| Processes | 7 | **1** | 85.7% fewer |
+| Private memory | 947.0 MB | **23.4 MB** | **97.5% lower** |
+| Working set | 1880.4 MB | **44.2 MB** | **97.6% lower** |
+| Startup to visible window | 2.71 s | **1.37 s** | 49.4% faster |
+| CPU, average | 4.60% | **0.01%** | 99.8% lower |
+| GPU, average | 0.83% | **0.00%** | 100% lower |
 
-- Idle library: private 97.3% (23.4 vs 872.1 MiB); working set 97.5% (44.2 vs 1784.7 MiB).
-- Active trainer session (headless self-test): private 99.7% (2.7 vs 872.1 MiB); working set 99.4% (9.9 vs 1784.7 MiB).
-- Startup latency to first responsive window (idle): median 1732 ms (min 1206, max 4307).
+The Task Manager screenshot above shows both applications running at once:
+`Wand (6)` at 501.4 MB and `wand-rebuild-ui.exe` at 22.1 MB. Task Manager's
+Memory column is the private working set, which is smaller than the summed
+working set in the table; both figures are reported above for clarity.
 
-## In-game effect verification
+## Method
 
-Verdict: **Not confirmed** (trainer acknowledgement only).
+`work/tools/bench_compare.ps1`:
 
-Evidence collected:
-- `work/research/evidence/effect/debugpipes.txt` — `WAND_DEBUG_PIPES=1` run of `--trainer-self-test`. Traffic shows only SetValue (frame type 2) outbound and ValueResponse (type 3, result 0) inbound; no trainer-pushed Value (type 2 inbound) frames reflecting game state.
-- `work/research/evidence/effect/game_before.png`, `game_during.png`, `game_after.png`, `baseline1.png`, `baseline2.png` — screenshots. Full-frame pixel comparison showed ~53% of pixels changed between captures, dominated by scene animation; a 0.5 s baseline pair with no mod change was identical, so the capture/timing is not isolating mod effects. No reproducible HUD-only difference attributable to a mod.
-- Trainer self-test reports all 5 mods `confirmed` (acknowledgement), but that confirms the trainer accepted the SetValue, not that game state changed.
+1. Kills any previous instance, starts the executable and times how long until a
+   process in the target group owns a visible main window.
+2. Waits a warm-up period (12 s in the final runs) so start-up work settles.
+3. Samples once per second for 10 s:
+   - **CPU** — process-tree CPU time delta divided by wall time and the logical
+     processor count (100% = every core busy).
+   - **GPU** — sum of `\GPU Engine(*)\Utilization Percentage` counters for the
+     processes, the same data Task Manager displays.
+   - **Private memory / working set** — summed over every process in the group.
+   - **Process count** — number of processes in the group.
+4. Repeats three times per application; the median of the three runs is used.
 
-Blocker: mods are toggles whose effects require gameplay triggers (taking damage for God Mode, spending for Add Money, firing for Ammo, etc.). No headless path triggers those, and screenshot comparison cannot separate mod effects from animation.
+Raw samples: `docs/bench/runs/wand-electron-{1,2,3}.json` and
+`docs/bench/runs/wand-lite-{1,2,3}.json`. The chart is rendered from those files
+by `work/tools/render_bench.py`, so the numbers in this document can be
+re-derived from the raw data.
 
-## Limits of this measurement
+## Honest notes and limits
 
-- Summed working sets double-count shared pages (OS shared libraries/DLLs), so totals overstate unique memory; private bytes are the fairer comparison.
-- Process counts and memory fluctuate with machine state; single machine, no cross-hardware validation.
-- Wand Lite Core was left running during WandRebuild runs, so system memory pressure/cache state differs from a clean machine.
-- Active-session scenario uses the headless `--trainer-self-test` path (no window/rendering), so its memory is lower than an interactive UI session with a trainer panel open.
-- Startup latency is polled at 250 ms and is approximate.
-- Game was running during benchmarks; trainer DLL runs inside the game process, whose memory was not included in the WandRebuild figures.
+- **The trainer runtime is excluded from both sides.** When a trainer is loaded
+  it runs inside the *game* process, so its memory is not part of either
+  application's footprint. This comparison is the client application only.
+- **CPU/GPU percentages are relative to the whole machine**, not to one core.
+  Electron's idle cost comes from its renderer/GPU processes; a native window
+  that only redraws on input measures at effectively zero.
+- **Electron memory varies with state.** Wand's numbers grow when the store,
+  search, or a trainer page is open. The figures here are the idle library view,
+  the most favourable case for Electron.
+- **Startup** measures until a window exists, not until it is fully painted. The
+  native client is consistently faster, but both are in the low seconds.
+- **Summed working set double-counts shared pages** (for example the shared
+  Electron/Chromium DLLs). Private memory is the fairer per-application figure;
+  both are listed.
+- Single machine, single GPU (hybrid Intel + NVIDIA laptop), 32 logical
+  processors. Absolute numbers will differ elsewhere; the ratios are the point.

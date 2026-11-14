@@ -1,0 +1,83 @@
+﻿{
+    "name":  "wand-lite-rust",
+    "command":  "C:\\Users\\Dru\\AppData\\Local\\Programs\\WandLite\\wand-rebuild-ui.exe",
+    "measuredAt":  "2026-11-14T05:59:17.1384736Z",
+    "logicalProcessors":  16,
+    "startupSeconds":  1.42,
+    "warmupSeconds":  12,
+    "sampleSeconds":  10,
+    "processCount":  1,
+    "privateMbMedian":  23.3,
+    "privateMbAverage":  23.23,
+    "privateMbMax":  23.3,
+    "workingSetMbMedian":  44.1,
+    "workingSetMbAverage":  44.06,
+    "workingSetMbMax":  44.1,
+    "cpuPercentAverage":  0,
+    "cpuPercentMedian":  0,
+    "cpuPercentMax":  0.01,
+    "gpuPercentAverage":  0,
+    "gpuPercentMax":  0,
+    "samples":  {
+                    "cpuPercent":  [
+                                       0,
+                                       0,
+                                       0,
+                                       0.01,
+                                       0,
+                                       0,
+                                       0.01,
+                                       0,
+                                       0,
+                                       0.01
+                                   ],
+                    "privateMb":  [
+                                      23.3,
+                                      23.3,
+                                      23.3,
+                                      23.3,
+                                      23.3,
+                                      23.3,
+                                      23.2,
+                                      23.1,
+                                      23.1,
+                                      23.1
+                                  ],
+                    "workingSetMb":  [
+                                         44.1,
+                                         44.1,
+                                         44.1,
+                                         44.1,
+                                         44.1,
+                                         44.1,
+                                         44,
+                                         44,
+                                         44,
+                                         44
+                                     ],
+                    "processCount":  [
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1,
+                                         1
+                                     ],
+                    "gpuPercent":  [
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0,
+                                       0
+                                   ]
+                }
+}

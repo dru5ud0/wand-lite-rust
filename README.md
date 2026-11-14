@@ -166,20 +166,29 @@ Confirmed against Wand 12.30.1 and *Stick It to the Stickman*:
 `cargo test --workspace --release` → **74 tests**, including a real Windows
 named-pipe round trip.
 
-## Memory
+## Performance
 
-Five runs, medians, same machine, Wand Lite Core as the reference:
+Both applications on their idle library view, same machine, median of three
+runs. Full methodology and raw samples in
+[docs/BENCHMARK_FINDINGS.md](docs/BENCHMARK_FINDINGS.md).
 
-| Process group | Processes | Private | Working set |
+![Performance comparison](docs/bench/comparison.png)
+
+| Metric | Wand Lite Core (Electron) | Wand Lite Rust | Difference |
 |---|---:|---:|---:|
-| Wand Lite Core (idle library) | 7 | 872.1 MiB | 1784.7 MiB |
-| Wand Lite Rust (idle library) | 1 | 23.4 MiB | 44.2 MiB |
-| **Reduction** | | **97.3%** | **97.5%** |
+| Processes | 7 | **1** | 85.7% fewer |
+| Private memory | 947.0 MB | **23.4 MB** | **97.5% lower** |
+| Working set | 1880.4 MB | **44.2 MB** | **97.6% lower** |
+| Startup to window | 2.71 s | **1.37 s** | 49.4% faster |
+| CPU, average | 4.60% | **0.01%** | 99.8% lower |
+| GPU, average | 0.83% | **0.00%** | 100% lower |
 
-Startup to a responsive window: median 1.73 s. The trainer runtime that patches
-memory runs inside the game process and is excluded from both groups — see
-[docs/BENCHMARK_FINDINGS.md](docs/BENCHMARK_FINDINGS.md) for methodology and
-limits.
+Task Manager with both running at once:
+
+![Task Manager comparison](docs/bench/task-manager.png)
+
+The trainer runtime that patches memory runs inside the game process, so it is
+excluded from both sides — this is the client application only.
 
 ## Limitations
 

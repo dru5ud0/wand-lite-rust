@@ -1,0 +1,83 @@
+﻿{
+    "name":  "wand-electron",
+    "command":  "C:\\Users\\Dru\\AppData\\Local\\Wand\\Wand.exe",
+    "measuredAt":  "2026-11-14T05:55:49.6869299Z",
+    "logicalProcessors":  16,
+    "startupSeconds":  2.23,
+    "warmupSeconds":  12,
+    "sampleSeconds":  10,
+    "processCount":  7,
+    "privateMbMedian":  946.95,
+    "privateMbAverage":  959.21,
+    "privateMbMax":  1166.5,
+    "workingSetMbMedian":  1881,
+    "workingSetMbAverage":  1888.28,
+    "workingSetMbMax":  2007.2,
+    "cpuPercentAverage":  5.38,
+    "cpuPercentMedian":  5.46,
+    "cpuPercentMax":  5.92,
+    "gpuPercentAverage":  1,
+    "gpuPercentMax":  1.03,
+    "samples":  {
+                    "cpuPercent":  [
+                                       4.24,
+                                       5.73,
+                                       5.72,
+                                       5.58,
+                                       5.6,
+                                       5.92,
+                                       5.33,
+                                       5.28,
+                                       5.12,
+                                       5.25
+                                   ],
+                    "privateMb":  [
+                                      1166.5,
+                                      999.2,
+                                      948.3,
+                                      945.6,
+                                      977.5,
+                                      958.5,
+                                      933.9,
+                                      878.4,
+                                      894,
+                                      890.2
+                                  ],
+                    "workingSetMb":  [
+                                         2007.2,
+                                         1958.4,
+                                         1893.8,
+                                         1892.8,
+                                         1894.9,
+                                         1869.2,
+                                         1849.2,
+                                         1843.8,
+                                         1838.3,
+                                         1835.2
+                                     ],
+                    "processCount":  [
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7,
+                                         7
+                                     ],
+                    "gpuPercent":  [
+                                       0.99,
+                                       0.98,
+                                       0.98,
+                                       1.02,
+                                       1,
+                                       1.03,
+                                       1.01,
+                                       1.02,
+                                       0.97,
+                                       0.97
+                                   ]
+                }
+}
